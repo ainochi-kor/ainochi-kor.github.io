@@ -1,7 +1,7 @@
 ---
 layout: post
 author: ainochi-kor
-title: Start to Vue.js
+title: Vue.js/Start to Vue.js
 ---
 
 # "Vue.js"의 초점은 더 많은 사람들이 쉽게 웹 앱을 만들 수 있도록 도와주는 데 있다."
