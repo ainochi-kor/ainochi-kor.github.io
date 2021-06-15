@@ -110,5 +110,88 @@ import FancyButton from './FancyButton';
 
 const ref = React.createRef();
 
+// 가져온 FancyButton 컴포넌트는 LogProps HOC이다.
+// 렌더링 결과가 동일하다고 하더라도,
+// ref는 내부 FancyButton 컴포넌트 대신 LogProps를 가리킨다.
+// 이것은 우리가 예를 들어 ref.current.focus()를 호출할 수 없다는 것을 의미한다.
+
+<FancyButton
+  label="Click Me"
+  handle={handleClick}
+  ref={ref}
+/>;
+
+```
+
+다행히 React.forwardRef API를 사용하여 내부 FacnyButton 컴포넌트에 대한 refs를 명시적으로 전달할 수 있다.  
+React.forwardRef는 props와 ref 파라미터를 받아 React 노드를 반환하는 렌더링 함수를 받는다.
+
+``` js
+function logProps(Component) {
+  class LogProps extends React.Component {
+    componentDidUpdate(prevProps) {
+      console.log('old props:',prevProps);
+      console.log('new props:',this.props);
+    }
+
+    render() {
+      const {forwardedRef, ...rest} = this.props;
+
+      // 사용자 정의 prop "forwardedRef"를 ref로 할당한다.
+      return <Component ref={forwardedRef} {...rest} />;
+    }
+  }
+  
+  // React.forwardRef에서 제공하는 두 번째 파라미터 "ref"에 주의.
+  // 가령 "forwardedRef"같은 일반 prop으로 LogProps에 전달할 수 있다.
+  // 그 다음 Component에 연결할 수 있다.
+  return React.forwardRef((props, ref) => {
+    return <LogProps {...props} forwardedRef={ref} />;
+  });
+}
+```
+
+---
+
+## DevTools에 사용자 정의 이름 표시하기
+
+React.forwardRef는 렌더링 함수를 받는다. React DevTools는 이 함수를 사용하여 ref 전달 컴포넌트에 대해서 무엇을 표시할 것인지 정의한다.  
+  
+예로, 다음의 컴포넌트 DevTools에 "ForwardRef"로 나타날 것이다.
+
+``` js
+const WrappedComponent = React.forwardRef((props, ref) => {
+  return <LogProps {...props} forwardedRef={ref} />;
+});
+```
+
+만약 렌더링 함수를 지정하면 DevTools에 해당 이름도 포함한다.
+
+``` js
+const WrappedComponent = React.forwardRef(
+  function myFunction (props, ref) {
+  return <LogProps {...props} forwardedRef={ref} />;
+  }
+);
+```
+  
+감싸고 있는 컴포넌트를 포함하도록 함수의 displayName 속성을 설정할 수도 있다.
+
+``` js
+function logProps(Component) {
+  class LogProps extends React.Component {
+    // ...
+  }
+
+  function forwardRef(props, ref) {
+    return <LogProps {...props} forwardedRef={ref} />;
+  }
+
+  // DevTools에서 이 컴포넌트에 조금 더 유용한 표시 이름을 지정
+  const name = Component.displayName || Component.name;
+  forwardRef.displayName = `logProps(${name})`;
+
+  return React.forwardRef(forwardRef);
+}
 
 ```
