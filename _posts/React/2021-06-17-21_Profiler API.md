@@ -1,149 +1,96 @@
 ---
 layout: post
 author: ainochi-kor
-title: React/20. Portals
+title: React/21. Profiler API
 ---
 
-Portal은 부모 컴포넌트의 DOM 계층 구조 바깥에 있는 DOM 노드로 자식을 렌더링하는 최고의 방법을 제공한다.
+Profiler는 React 애플리케이션이 렌더링하는 빈도와 렌더링 "비용"을 측정한다. **Profiler의 목적은 메모이제이션 같은 성능 최적화 방법을 활용할 수 있는 애플리케이션의 느린 부분들을 식별해내는 것이다.**
 
-``` js
-ReactDOM.createPortal(child, container)
-```
-
-첫 번째 인자(child)는 엘리먼트, 문자열, 혹은 fragment와 같은 어떤 종류이든 렌더링할 수 있는 React 자식이다. 두 번째 인자(container)는 DOM 엘리먼트이다.
+> #### 주의
+> 프로파일링은 약간의 오버헤드를 만들기 때문에 프로덕션 빌드에서는 비활성화되어 있다.
 
 ---
 
 ## 사용법
 
-보통 컴포넌트 렌더링 메서드에서 엘리먼트를 반환할 때 그 엘리먼트는 부모 노드에서 가장 가까운 자식으로 DOM에 마운트 된다.
+Profiler는 React 트리 내에 어디에나 추가될 수 있으며 트리의 특정 부분의 렌더링 비용을 계산해준다. 이는 두 가지 props를 요구한다. id(문자열)와 onRender 콜백(함수)이며 React 트리 내 컴포넌트에 업데이트가 커밋되면 호출된다.
+
+[Navigation 컴포넌트와 자손 컴포넌트들을 프로파일 하기]
 
 ``` js
-render() {
-  // React는 새로운 div를 마운트하고 그 안에 자식을 렌더링한다.
-  return (
-    <div>
-      {this.props.children}
-    </div>
-  );
-}
+render (
+  <App>
+    <Profiler id="Navigation" onRender={callback}>
+      <Navigation {...props} />
+    </Profiler>
+  </App>
+);
 ```
 
-그런데 가끔 DOM의 다른 위치에 자식을 삽입하는 것이 유용할 수 있다.
+복수의 Profiler 컴포넌트로 애플리케이션의 다른 부분들을 계산할 수 있다.
 
 ``` js
-render() {
-  // React는 새로운 div를 생성하지 않고 `domNode` 안에 자식을 렌더링 한다.
-  // `domNode`는 DOM 노드라면 어떠한 것이든 유효하고, 그것은 DOM 내부의 어디에 있든 상관없다.
-  return ReactDOM.createPortal(
-    this.props.children,
-    domNode
-  );
-}
+render (
+  <App>
+    <Profiler id="Navigation" onRender={callback}>
+      <Navigation {...props} />
+    </Profiler>
+    <Profiler id="Main" onRender={callback}>
+      <Main {...props} />
+    </Profiler>
+  </App>
+);
 ```
 
-portal의 전형적인 유스케이스는 부모 컴포넌트에 overflow: hidden이나 z-index가 있는 경우이지만, 시각적으로 자식을 "튀어나오도록" 보여야 하는 경우도 있다. 
+Profiler 컴포넌트는 하위 트리의 다른 컴포넌트들을 계산하기 위해 중첩해서 사용할 수 있다.
 
-> #### 주의
-> portal을 이용하여 작업할 때 키보드 포커스 관리가 매우 중요하다.
+``` js
+render(
+  <App>
+    <Profiler id="Panel" onRender={callback}>
+      <Panel {...props}>
+        <Profiler id="Content" onRender={callback}>
+          <Content {...props} />
+        </Profiler>
+        <Profiler id="PreviewPane" onRender={callback}>
+          <PreviewPane {...props} />
+        </Profiler>
+      </Panel>
+    </Profiler>
+  </App>
+);
+```
+
+> #### 주의사항
+> Profiler는 가벼운 컴포넌트이지만 필요할 때만 사용해야 한다. 각 Profiler는 애플리케이션에 조금의 CPU와 메모리 비용을 추가한다.
 
 ---
 
-## Portal을 통한 이벤트 버블링
+## onRender 콜백
 
-portal이  DOM 트리의 어디에서도 존재할 수 있다 하더라도 모든 다른 면에서 일반적인 React 자식처럼 동작한다. context와 같은 기능은 자식이 portal이든지 아니든지 상관없이 정확하게 같게 동작한다. 이는 **DOM 트리에서의 위치에 상관없이 portal은 여전히 React 트리에 존재하기 때문이다.**  
-  
-이것에는 이벤트 버블링도 포함되어 있다. portal 내부에서 발생한 이벤트는 React 트리에 포함된 상위로 전파될 것이다. DOM 트리에서는 그 상위가 아니라 하더라도 말이다.
-
-> 이벤트 버블링 : 특정 화면 요소에서 이벤트가 발생했을 때 해당 이벤트가 더 상위의 화면 요소들로 전달되어 가는 특성
-
-``` html
-<html>
-  <body>
-    <div id="app-root"></div>
-    <div id="modal-root"></div>
-  </body>
-</html>
-```
-
-#app-root 안에 있는 Parent 컴포넌트는 형제 노드인 #modal-root 안의 컴포넌트에서 전파된 이벤트가 포착되지 않았을 경우 그것을 포착할 수 있다.
+Profiler는 onRender 함수를 prop으로 요구한다. **React는 프로파일 트리 내의 컴포넌트에 업데이트가 "커밋"될 때마다 이 함수를 호출한다.** 이 함수는 무엇이 렌더링 되었는지 그리고 얼마나 걸렸는지 설명하는 입력값을 받게 된다.
 
 ``` js
-// 여기 두 컨테이너는 DOM에서 형제 관계이다.
-const appRoot = document.getElementById('app-root');
-const modalRoot = document.getElementById('modal-root');
-
-class Modal extends React.Component {
-  constructor(props) {
-    super(props);
-    this.el = document.createElement('div');
-  }
-
-  componentDidMount() {
-    // Portal 엘리먼트는 Modal의 자식이 마운트된 후 DOM 트리에 삽입된다.
-    // 자식은 어디에도 연결되지 않은 DOM 노드로 마운트 된다.
-    // 만약 자식 컴포넌트가 마운트될 때 그것을 즉시 DOM 트리에 연결해야만 한다면,
-    // 예를 들어 DOM 노드를 계산한다든지 자식 노드에서 'autoFocus'를 사용한다든지 하는 경우에
-    // Modal에 state를 추가하고 Modal이 DOM 트리에 삽입되어 있을 때만 자식을 렌더링 해야한다.
-    modalRoot.appendChild(this.el);
-  }
-
-  componentWillUnmount() {
-    modalRoot.removeChild(this.el);
-  }
-
-  render() {
-    return ReactDOM.createPortal(
-      this.props.children,
-      this.el
-    );
-  }
+function onRenderCallback(
+  id, // 방금 커밋된 Profiler 트리의 "id"
+  phase, // "mount"(트리가 방금 마운트가 된 경우) 혹은 "update"(트리가 리렌더링된 경우)
+  actualDuration, // 커밋된 업데이트를 렌더링하는데 걸린 시간
+  baseDuration, // 메모이제이션 없이 하위 트리 전체를 렌더링하는데 걸리는 예상시간
+  startTime, // React가 언제 해당 업데이트를 렌더링하기 시작했는지
+  commitTime, // React가 해당 업데이틀 언제 커밋했는지
+  interactions // 이 업데이트에 해당하는 상호작용들의 집합
+) {
+  // 렌더링 타이밍을 집합하거나 로그...
 }
-
-class Parent extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = {click: 0};
-    this.handleClick = this.handleClick.bind(this);
-  }
-
-   handleClick() {
-    // 이것은 Child에 있는 버튼이 클릭 되었을 때 발생하고 Parent의 state를 갱신한다.
-    // 비록 버튼이 DOM 상에서 직계 자식이 아니라고 하더라도 말이다.
-    this.setState(state => ({
-      clicks: state.clicks + 1
-    }));
-  }
-
-  render() {
-    return (
-      <div onClick={this.handleClick}>
-        <p>Number of clicks: {this.state.clicks}</p>
-        <p>
-          Open up the browser DevTools
-          to observe that the button
-          is not a child of the div
-          with the onClick handler.
-        </p>
-        <Modal>
-          <Child />
-        </Modal>
-      </div>
-    );
-  }
-}
-
-function Child() {
-  // 이 버튼에서의 클릭 이벤트는 부모로 버블링된다.
-  // 왜냐하면 'onClick' 속성이 정의되지 않았기 때문.
-  return (
-    <div classNAme="modal">
-      <button>Click</button>
-    </div>
-  );
-}
-
-ReactDOM.render(<Parent />, appRoot);
 ```
 
-portal에서 버블링된 이벤트를 부모 컴포넌트에서 포착한다는 것은 본질적으로 portal에 의존하지 않는 조금 더 유연한 추상화 개발이 가능함을 나타낸다.
+- **id: string** : 방금 커밋된 Profiler 트리의 id prop. 복수의 프로파일러를 사용하고 있다면 트리의 어느 부분이 커밋되었는지 식별하는데 사용할 수 있다.
+- **phase: "mount" | "update"** : 해당 트리가 방금 마운트된 건지 props, state 혹은 hooks의 변화로 인하여 리렌더링 된 건지 식별한다.
+- **actualDuration: number** : 현재 업데이트에 해당하는 Profiler와 자손 컴포넌트들을 렌더하는데 걸린 시간 이것은 하위 트리가 얼마나 메모이제이션을 잘 활용하고 있는지를 암시한다. 이상적인 대다수의 자손 컴포넌트들은 특정 prop이 변할 경우에만 리렌덜링이 필요하기 때문에 이 값은 초기 렌더링 이후에 상당 부분 감소해야 한다.
+- **baseDuration: number** : Profiler 트리 내 개별 컴포넌트들의 가장 최근 render 시간의 지속기간 이 값은 렌더링 비용의 최악 케이스를 계산해준다. 
+- **startTime: number** : React가 현재 업데이트에 대해 렌더링을 시작한 시간의 타임 스탬프
+- **commitTime: number** : React가 현재 업데이트를 커밋한 시간의 타임 스탬프 이 값은 모든 프로파일러들이 공유하기 때문에 원한다면 그룹을 지을 수 있다.
+- **interactions: Set** : 업데이트가 계획되었을 때 추적하고 있던 "상호작용"의 집합
+
+> #### 주의
+> 상호작용을 추적하는 API는 아직 시험단계이자만, 상호작용은 업데이트의 원일 식별하는데 사용할 수 있다. [[참고](https://gist.github.com/bvaughn/8de925562903afd2e7a12554adcdda16)]
