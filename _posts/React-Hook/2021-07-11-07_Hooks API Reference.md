@@ -335,3 +335,104 @@ function Counter({initialCount}) {
 Reducer Hook에서 현재 state와 같은 값을 반환하는 경우 React는 자식을 리렌더링하거나 effect를 발생하지 않고 이것들을 회피할 것이다. (React는 Object.is 비교 알고리즘을 사용한다)  
   
 실행을 회피하기 전에 React에서 특정 컴포넌트를 다시 렌더링하는 것이 여전히 필요할 수도 있다는 것에 주의하자. React가 불필요하게 트리에 그 이상으로 [더 깊게] 까지는 가지 않을 것이므로 크지게 신경 쓰지 않아도 된다. 만약 렌더링 시에 고비용의 계산을 하고 있다면 useMemo를 사용하여 그것을 최적화할 수 있다.
+
+### useCallback
+
+``` js
+const memoizedCallback = useCallback(() => {
+  doSomething(a, b);
+},[a, b]);
+```
+
+메모이제이션된 콜백을 반환한다.  
+  
+인라인 콜백과 그것의 의존성 값의 배열을 전달하라. useCallback은 콜백의 메모이제이션된 버전을 반환할 것이다. 그 메모이제이션된 버전은 콜백의 의존성이 변경되었을 때에만 변경된다. 이것은, 불필요한 렌더링을 방지하기 위해(예로 shouldComponentUpdate를 사용하여)참조의 동일성에 의존적인 최적화된 자식 컴포넌트에 콜백을 전달할 때 유용하다.  
+  
+useCallback(fn, deps) 은 useMemo(() => fn, deps)와 같다.
+
+> #### 주의
+> 의존성 값의 배열이 콜백에 인자로 전달되지는 않는다. 그렇지만 개념적으로는, 이 기법은 콜백 함수가 무엇일지를 표현하는 방법이다. 콜백 안에서 참조되는 모든 값은 의존성 값의 배열을 나타내야 한다. 나중에 충분히 발전된 컴파일러가 이 배열을 자동적으로 생성할 수 있을 것이다.  
+>  
+> eslint-plugin-react-hooks 패키지의 일부로써 exhaustive-deps 규칙을 사용하고 권장한다. 그것은 의존성이 바르지 않게 정의되었다면 그에 대해 경고하고 수정하도록 알려준다.  
+  
+### useMemo
+
+``` js
+const memoizedValue = useMemo(() => computeExpensiveValue(a, b), [a, b]);
+```
+
+메모이제이션된 값을 반환한다.  
+  
+"생성(create)" 함수와 그것의 의존성 값의 배열을 전달하라. useMemo는 의존성이 변경되었을 때에만 메모이제이션된 값만 다시 계산할 것이다. 이 최적화는 모든 렌더링 시의 고비용 계산을 방지하게 해준다.  
+  
+useMemo로 전달된 함수는 렌더링 중에 실행된다는 것을 기억하라. 통상적으로 렌더링 중에는 하지 않는 것을 이 함수 내에서 하지 말라. 예를 들어 사이드 이펙트(side effects)는 useEffect에서 하는 일이지 useMemo에서 하는 일이 아니다.  
+  
+배열이 없는 경우 매 렌더링 때마다 새 값을 계산하게 될 것이다.  
+  
+useMemo는 성능 최적화를 위해 사용할 수는 있지만 의미상으로 보장이 있다고 생각하지는 말라. useMemo를 사용하지 않고도 동작할 수 있도록 코드를 작성하고 그것을 추가하여 성능을 최적하하라.
+
+> #### 주의
+> 의존성 값의 배열은 함수에 인자로 전달되지는 않는다. 그렇지만 개념적으로는, 이 기법은 함수가 무엇일지를 표현하는 방법이다. 함수 안에서 참조되는 모든 값은 의존성 값의 배열을 나타나야 한다. 나중에는 충분히 발전된 컴파일러가 이 배열을 자동으로 생성할 수 있다.  
+>  
+> eslint-plugin-react-hooks 패키지의 일부로써 exhaustive-deps 규칙을 사용하고 권장한다. 그것은 의존성이 바르지 않게 정의되었다면 그에 대해 경고하고 수정하도록 알려준다.  
+
+### useRef
+
+``` js
+const refContainer = useRef(initialValue);
+```
+
+useRef는 .current 프로퍼티로 전달된 인자(initialValue)로 초기화된 병경 가능한 ref 객체를 반환한다. 반환된 객체는 컴포넌트의 전 생애주기를 통해 유지될 것이다.  
+  
+일반적인 유스케이스는 자식에게 명령적으로 접근하는 경우이다.  
+  
+``` js
+function TextInputWithFocusButton() {
+  const inputEl = useRef(null);
+  const onButtonClick = () => {
+    // 'current' points to the mounted text input element
+    inputEl.current.focus();
+  };
+  return (
+    <>
+    <input ref={inputEl} type="text" />
+    <button onClick={onButtonClick}>Focus the input</button>
+    </>
+  );
+}
+```
+
+본질적으로 useRef는 .current 프로퍼티에 변경 가능한 값을 담고 있는 "상자"와 같다.  
+  
+아마도 여러분은 DOM에 접근하는 방식으로 refs에 친숙할 수 있지만, 만약 \<div ref={myRef} \/> 를 사용하여 React로 ref 객체를 전달한다면, React는 모드가 변경될 때마다 변경된 DOM 노드에 그것의 .current 프로퍼티를 설정할 것이다.  
+  
+그렇지만, ref 속성보다 useRef() 가 더 유용하다. 이 기능은 클래스에서 인스턴스 필드를 사용하는 방법과 유사한 어떤 가변값을 유지하는 데에 편리하다.  
+  
+이것은 useRef()가 순수 자바스크립트 객체를 생성하기 때문이다. useRef()와  {current: ...} 객체 자체를 생성하는 것의 유일한 차이점이라면 useRef는 매번 렌더링을 할 때 동일한 ref 객체를 제공한다는 것이다.  
+  
+useRef는 내용이 변경될 때 그것을 알려주지 않는다.  
+.current 프로퍼티를 변형하는 것이 리렌더링을 발생시키지는 않는다. 만약 React가 DOM 노드에 ref를 attach하거나 detach할 때 어떤 코드를 실행하고 싶다면 대신 콜백 ref를 사용하라  
+  
+### useImperativeHandle
+  
+``` js
+useImperativeHandle(ref, createHandle, [deps])
+```
+
+useImperativeHandle은 ref를 사용할 때 부모 컴포넌트에 노출되는 인스턴스 값을 사용자화(customizes)한다. 항상 그렇듯이, 대부분의 경우 ref를 사용한 명령형 코드는 피해야 한다. useImperativeHandle는 forwardRef와 더불어 사용하라.
+
+``` js
+function FancyInput(props, ref) {
+  const inputRef = useRef();
+  useImperativeHandle(ref, () => ({
+    focus: () => {
+      inputRef.current.focus();
+    }
+  }));
+  return <input ref={inputRef} ... />;
+}
+
+FancyInput = forwardRef(FancyInput);
+```
+
+위의 예제에서 \<FancyInput ref={inputRef} />를 렌더링한 부모 컴포넌트는 inputRef.current.focus()를 호출할 수 있다.
