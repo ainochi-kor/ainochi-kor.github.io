@@ -436,3 +436,48 @@ FancyInput = forwardRef(FancyInput);
 ```
 
 위의 예제에서 \<FancyInput ref={inputRef} />를 렌더링한 부모 컴포넌트는 inputRef.current.focus()를 호출할 수 있다.
+
+### useLayoutEffect
+
+이 함수의 시그니처는 useEffect와 동일하긴 한데, 모든 DOM 변경 후에 동기적으로 발생한다. 이것은 DOM에서 레이아웃을 읽고 동기적으로 리렌더링하는 경우에 사용하라.  
+useLayoutEffect의 내부에 예정된 갱신은 브라우저가 화면을 그리기 이전 시점에 동기적으로 수행될 것이다.  
+  
+화면 갱신 차단의 방지가 가능할 때 표준 useEffect를 먼저 사용하라.
+
+> ### 팁
+> 클래스 컴포넌트에서 코드를 변환하는 경우에 useLayoutEffect는 componentDidMount나 componentDidUpdate와 동일한 단계를 실행하게 된다는 것에 주의하라. 그렇기는 하지만, **먼저 useEffect를 사용해보고** 있으면 그 다음으로 useLayoutEffect를 사용해보기 권장한다.  
+>  
+> 서버 렌더링을 사용하는 경우라면 자바스크립트가 모두 다운로드될 때까지는 useLayoutEffect와 useEffect 어느 것도 실행되지 않는다는 것을 명심해야 한다. 이것이 서버에서 렌더링 되는 컴포넌트에서 useLayoutEffect가 사용되는 경우에 React가 경고하는 이유이다. 이를 수정하기 위해서는 (최초 렌더링 시에 필요하지 않다면) 로직을 useEffect로 이동한다거나 (useLayoutEffect가 수행될 때까지 HTML이 깨져 보이는 경우는) 클라이언트 렌더링이 완료될 때까지 컴포넌트 노출을 지연하도록 하라.  
+>  
+> 서버에서 렌더링 된 HTML에서 레이아웃 effect가 필요한 컴포넌트를 배제하고 싶다면, showChild && \<Child /> 를 사용하여 조건적으로 렌더링 하고, useEffect(() => {
+  setShowChild(true); }, [])를 사용하여 노출을 지연시키보라. 이런 방법으로 자바스크립트 코드가 주입되기 전에 깨져 보일 수 있는 UI는 표현되지 않게 된다.
+})
+
+### useDebugValue
+
+``` js
+useDebugValue(value);
+```
+
+useDebugValue는 React 개발자도구에서 사용자 Hook 레이블을 표시하는데 사용할 수 있다.  
+  
+예를 들어, "나만의 Hook 만들기"에 설명하고 있는 useFriendStatus 사용자 Hook에 대해서 생각해보자.  
+  
+``` js
+function useFriendStatus(friend) {
+  const [isOnline, setIsOnline] = useState(null);
+
+  // ...
+
+  // Show a label in DevTools next to this Hook
+  // e.g. "FriendStatus: Online"
+  useDebugValue(isOnline ? 'Online' : 'Offline');
+
+  feturn isOnline;
+}
+```
+
+> #### 팁
+> 모든 사용자 Hook에 디버그 값을 추가하기를 권하지 않는다. 이것은 사용자 Hook이 공유된 라이브러이의 일부일 때 가장 유용하다.
+
+### 디버그 값 포맷팅 지연하기
